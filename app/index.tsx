@@ -1,32 +1,53 @@
 import React, { useEffect, useState } from "react";
-import { SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
+
+const CONFIG_URL =
+  "https://raw.githubusercontent.com/BhalodiyaYash155/demoapp/master/themeConfig.json";
 
 export default function App() {
-  const [isFestive, setIsFestive] = useState(false);
+  const [theme, setTheme] = useState(null);
 
   useEffect(() => {
-    // Change UI after 2 minutes (120000 ms)
-    const timer = setTimeout(() => {
-      setIsFestive(true);
-    }, 12000);
+    const fetchConfig = async () => {
+      try {
+        const response = await fetch(CONFIG_URL);
+        const config = await response.json();
 
-    return () => clearTimeout(timer);
+        const now = Date.now();
+        const festive = config.festiveTheme;
+        const start = new Date(festive.startDate).getTime();
+        const end = new Date(festive.endDate).getTime();
+
+        if (now >= start && now <= end) {
+          setTheme(festive);
+        } else {
+          setTheme(config.defaultTheme);
+        }
+      } catch (error) {
+        console.error("Error loading config:", error);
+      }
+    };
+
+    fetchConfig();
+
+    // Re-check every minute
+    const interval = setInterval(fetchConfig, 60 * 1000);
+
+    return () => clearInterval(interval);
   }, []);
 
+  if (!theme) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" color="#000" />
+      </View>
+    );
+  }
+
   return (
-    <SafeAreaView style={styles.container}>
-      {isFestive ? (
-        <View style={styles.festiveBox}>
-          <Text style={styles.festiveText}>🎉 Festive Sale is Live! 🎉</Text>
-          <Text style={styles.subText}>Enjoy amazing deals and discounts!</Text>
-        </View>
-      ) : (
-        <View style={styles.defaultBox}>
-          <Text style={styles.defaultText}>Welcome to My App</Text>
-          <Text style={styles.subText}>Stay tuned for exciting offers...</Text>
-        </View>
-      )}
-    </SafeAreaView>
+    <View style={[styles.container, { backgroundColor: theme.primaryColor }]}>
+      <Text style={styles.text}>{theme.text}</Text>
+    </View>
   );
 }
 
@@ -35,32 +56,10 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
-    backgroundColor: "#fff",
   },
-  defaultBox: {
-    padding: 20,
-    borderRadius: 10,
-    backgroundColor: "#e3f2fd",
-  },
-  festiveBox: {
-    padding: 20,
-    borderRadius: 10,
-    backgroundColor: "#fff3e0",
-  },
-  defaultText: {
+  text: {
     fontSize: 22,
     fontWeight: "bold",
-    color: "#1565C0",
-    marginBottom: 10,
-  },
-  festiveText: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#E65100",
-    marginBottom: 10,
-  },
-  subText: {
-    fontSize: 16,
-    color: "#555",
+    color: "#fff",
   },
 });
