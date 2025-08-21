@@ -4,8 +4,14 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 const CONFIG_URL =
   "https://raw.githubusercontent.com/BhalodiyaYash155/demoapp/master/themeConfig.json";
 
+type ThemeType = {
+  primaryColor: string;
+  text: string;
+  [key: string]: any;
+};
+
 export default function App() {
-  const [theme, setTheme] = useState(null);
+  const [theme, setTheme] = useState<ThemeType | null>(null);
 
   useEffect(() => {
     const fetchConfig = async () => {
@@ -13,10 +19,14 @@ export default function App() {
         const response = await fetch(CONFIG_URL);
         const config = await response.json();
 
+        // Parse dates in ISO format for reliability
         const now = Date.now();
         const festive = config.festiveTheme;
-        const start = new Date(festive.startDate).getTime();
-        const end = new Date(festive.endDate).getTime();
+        const start = Date.parse(festive.startDate);
+        const end = Date.parse(festive.endDate);
+
+        // Debug: log values to verify
+        // console.log("now:", now, "start:", start, "end:", end);
 
         if (now >= start && now <= end) {
           setTheme(festive);
