@@ -1,0 +1,175 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { addDoc, collection, deleteDoc, doc, getDocs } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { Button, FlatList, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { db } from '../firebase';
+
+type ItemType = {
+  id: string;
+  text: string;
+};
+
+export default function index() {
+  const [text, setText] = useState('');
+  const [items, setItems] = useState<ItemType[]>([]);
+
+  useEffect(() => {
+    loadItems();
+  }, []);
+
+  const loadItems = async () => {
+    try {
+      const jsonValue = await AsyncStorage.getItem('myList');
+      if (jsonValue != null) {
+        setItems(JSON.parse(jsonValue));
+      }
+
+      // Then sync with Firestore
+      await syncWithFirestore();
+    } catch (e) {
+      console.error('Error loading items:', e);
+    }
+  };
+
+  // Sync with Firestore and update AsyncStorage
+  const syncWithFirestore = async () => {
+    try {
+      const querySnapshot = await getDocs(collection(db, 'users'));
+      const firestoreItems: ItemType[] = [];
+      querySnapshot.forEach((doc) => {
+        firestoreItems.push({
+          id: doc.id,
+          text: doc.data().text,
+        });
+      });
+      
+      setItems(firestoreItems);
+      await saveToAsyncStorage(firestoreItems);
+    } catch (error) {
+      console.error('Error syncing with Firestore:', error);
+    }
+  };
+
+  // Save to AsyncStorage
+  const saveToAsyncStorage = async (itemsToSave: ItemType[]) => {
+    try {
+      const jsonValue = JSON.stringify(itemsToSave);
+      await AsyncStorage.setItem('myList', jsonValue);
+      console.log('Items saved to AsyncStorage');
+    } catch (e) {
+      console.error('Error saving to AsyncStorage:', e);
+    }
+  };
+
+  // Add item to both Firestore and AsyncStorage
+  const addItem = async () => {
+    if (text.trim()) {
+      try {
+        // Add to Firestore first
+        const docRef = await addDoc(collection(db, 'users'), {
+          text: text,
+          createdAt: new Date(),
+        });
+
+        // Create new item with Firestore ID
+        const newItem: ItemType = { id: docRef.id, text: text };
+        const updatedItems = [...items, newItem];
+        
+        // Update state
+        setItems(updatedItems);
+        setText('');
+        
+        // Save to AsyncStorage
+        await saveToAsyncStorage(updatedItems);
+        
+        console.log('Item added successfully');
+      } catch (error) {
+        console.error('Error adding item:', error);
+      }
+    }
+  };
+
+  // Delete item from both Firestore and AsyncStorage
+  const deleteItem = async (index: number) => {
+    const itemToDelete = items[index];
+    try {
+      // Delete from Firestore
+      await deleteDoc(doc(db, 'users', itemToDelete.id));
+      
+      // Update local state
+      const newItems = items.filter((_, i) => i !== index);
+      setItems(newItems);
+      
+      // Save to AsyncStorage
+      await saveToAsyncStorage(newItems);
+      
+      console.log('Item deleted successfully');
+    } catch (error) {
+      console.error('Error deleting item:', error);
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        style={styles.input}
+        placeholder="Type here to add item!"
+        onChangeText={setText}
+        value={text}
+      />
+      <Button
+        title="Add to List"
+        onPress={addItem}
+      />
+      <FlatList
+        data={items}
+        renderItem={({ item, index }) => (
+          <View style={styles.listItem}>
+            <Text style={styles.itemText}>{item.text}</Text>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => deleteItem(index)}
+            >
+              <Text style={styles.deleteText}>Delete</Text>
+            </TouchableOpacity>
+          </View>
+        )}
+        keyExtractor={(item) => item.id}
+      />
+    </View>
+  )
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    padding: 20,
+  },
+  input: {
+    height: 40,
+    margin: 12,
+    borderWidth: 1,
+    padding: 10,
+    borderRadius: 5,
+    backgroundColor: '#f0f0f0',
+  },
+  listItem: {
+    padding: 20,
+    borderBottomWidth: 1,
+    borderColor: '#ccc',
+  },
+  itemText: {
+    fontSize: 18,
+  },
+  deleteButton: {
+    backgroundColor: '#ff6347',
+    padding: 10,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  deleteText: {
+    color: '#fff',
+    textAlign: 'center',
+    fontWeight: 'bold',     
+  },
+})

@@ -1,0 +1,12 @@
+{
+  "defaultTheme": {
+    "primaryColor": "#1565C0",
+    "text": "Welcome to our store!"
+  },
+  "festiveTheme": {
+    "primaryColor": "#FF8F00",
+    "text": "🎉 Happy Diwali Sale 🎉",
+    "startDate": "2025-08-21T00:00:00Z",
+    "endDate": "2025-08-21T00:05:00Z"
+  }
+}

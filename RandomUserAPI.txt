@@ -1,0 +1,298 @@
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, FlatList, ListRenderItem, RefreshControl, StyleSheet, Text, TextInput, TouchableWithoutFeedback, View } from "react-native";
+
+type User = {
+  name: {
+    first: string;
+    last: string;
+  };
+  email: string;
+  location: {
+    city: string;
+  };
+  phone: string;
+  dob:{
+    age: string;
+  }
+};
+
+export default function Index() {
+  const router = useRouter();
+  const [data, setData] = useState<User[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [searchData, setSearchData] = useState("");
+  const [refreshing, setRefreshing] = useState(false);
+  const [currentPage, setCurrentPage] = useState(0);
+
+  const fetchData = async () => {
+    const nextPage = currentPage + 1;
+    try {
+      const response = await fetch(`https://randomuser.me/api/?page=${nextPage}&results=10&seed=abc`);
+      const json = await response.json();
+      setData([...data, ...json.results]);
+      setCurrentPage(nextPage);
+    } catch (error) {
+      console.log(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const renderItem: ListRenderItem<User> = ({ item }) => (
+    <TouchableWithoutFeedback onPress={() => navigateDetail(item)}>
+      <View style={styles.itemContainer}>
+        <Text style={styles.title}>
+          {item.name.first} {item.name.last}
+        </Text>
+        <Text>Email: {item.email}</Text>
+        <Text>City: {item.location.city}</Text>
+      </View>
+    </TouchableWithoutFeedback>
+  );
+
+  const navigateDetail = (user: User) =>{
+    router.push({
+      pathname: '/detailscreen',
+      params: {
+        first: user.name.first,
+        last: user.name.last,
+        email: user.email,
+        location: user.location.city,
+        phone: user.phone,
+        dob: user.dob.age
+      }
+    })
+  }
+
+  const filteredData = () => {
+    if (!searchData.trim()) {
+      return data;
+    }
+    const lower = searchData.toLowerCase();
+    return data.filter(
+      (user) =>
+        user.name.first.toLowerCase().includes(lower) ||
+        user.name.last.toLowerCase().includes(lower) ||
+        user.email.toLowerCase().includes(lower) ||
+        user.location.city.toLowerCase().includes(lower)
+    );
+  };
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  };
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        placeholder="Search"
+        value={searchData}
+        onChangeText={setSearchData}
+        style={styles.inputField}
+      />
+      <Text style={styles.heading}>Random Users Using API</Text>
+      {loading ? (
+        <ActivityIndicator size="large" color="#007AFF" />
+      ) : (
+        <FlatList
+          data={filteredData()}
+          renderItem={renderItem}
+          keyExtractor={(_, index) => index.toString()}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+          }
+          onEndReached={fetchData}
+          onEndReachedThreshold={.1}
+          ListFooterComponent={()=>{
+            return(
+            <View style={{width: '90%' }}>
+              {!loading && <ActivityIndicator size={"large"} />}
+            </View>
+            )
+          }}
+        />
+      )}
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: "flex-start",
+    marginHorizontal: 20,
+    marginVertical: 10,
+  },
+  inputField: {
+    padding: 18,
+    borderWidth: 2,
+    borderColor: "black",
+    fontSize: 18,
+    borderRadius: 12,
+  },
+  heading: {
+    fontSize: 28,
+    textAlign: "center",
+    marginVertical: 10,
+  },
+  itemContainer: {
+    backgroundColor: "#e0f7fa",
+    borderColor: "black",
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 10,
+  },
+  title: {
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+});
+
+
+
+
+
+import { useRouter } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  FlatList,
+  Image,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+
+type Item = {
+  images: string;
+  title: string;
+  price: number | string;
+  category: string;
+  rating?: {
+    rate?: number;
+  };
+};
+
+export default function Index() {
+  const router = useRouter();
+  const [data, setData] = useState<Item[]>([]);
+  const [searchData, setSearchData] = useState("");
+
+  const passProductDetail = (item: Item) => {
+    router.push({
+      pathname: "/productdetail",
+      params: {
+        image: Array.isArray(item.images) ? item.images[0] : item.images,
+        title: item.title,
+        price: item.price,
+        category: item.category,
+        rating: item.rating?.rate,
+      },
+    });
+  };
+
+  const renderItem = ({ item }: { item: Item }) => (
+    <TouchableOpacity onPress={() => passProductDetail(item)}>
+      <View style={styles.itemContainer}>
+        <Image
+          source={{
+            uri: Array.isArray(item.images) ? item.images[0] : item.images,
+          }}
+          style={styles.image}
+        />
+        <View style={styles.info}>
+          <Text style={styles.title}>{item.title}</Text>
+          <Text style={styles.price}>${item.price}</Text>
+          <Text style={styles.category}>{item.category}</Text>
+          <Text style={styles.rating}>
+            Rating: {item.rating?.rate ?? "N/A"}
+          </Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+
+  useEffect(() => {
+    fetch("https://dummyjson.com/products")
+      .then((response) => response.json())
+      .then((json) => {
+        setData(json.products);
+      });
+  });
+
+  return (
+    <View style={styles.container}>
+      <TextInput
+        style={styles.searchField}
+        placeholder="Search Item"
+        value={searchData}
+        onChangeText={setSearchData}
+      />
+      <FlatList
+        data={
+          searchData
+            ? data.filter((item) =>
+                item.title.toLowerCase().includes(searchData.toLowerCase())
+              )
+            : data
+        }
+        renderItem={renderItem}
+        keyExtractor={(_, idx) => idx.toString()}
+      />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  searchField: {
+    margin: 10,
+    borderWidth: 1,
+    borderRadius: 15,
+    padding: 10,
+    fontSize: 18,
+  },
+  itemContainer: {
+    flexDirection: "row",
+    padding: 12,
+    borderBottomWidth: 1,
+    borderColor: "#eee",
+    alignItems: "center",
+  },
+  image: {
+    width: 60,
+    height: 60,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  info: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: "bold",
+  },
+  price: {
+    color: "#007AFF",
+    marginTop: 2,
+  },
+  category: {
+    color: "#888",
+    marginTop: 2,
+  },
+  rating: {
+    color: "#444",
+    marginTop: 2,
+  },
+});
